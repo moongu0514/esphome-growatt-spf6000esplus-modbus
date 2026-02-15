@@ -11,3 +11,5 @@ This project is inspired by and builds upon the following open-source works:
 
 
 Special thanks to the authors for their valuable contributions!
+
+![img](.img/growatt-spf6000esplus.png)
