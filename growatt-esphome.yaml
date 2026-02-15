@@ -1,0 +1,984 @@
+substitutions:
+  name: growatt
+  device_name: growatt
+  device_description: "Esphome for growatt"
+  modbus_controller_id: controller1
+  modbus_update_interval: 15s
+  skip_updates_fast: 3
+  skip_updates_slow: 6
+  skip_updates_slow_slow: 10
+  update_fast: 18s
+  update_slow: 55s
+
+esphome:
+  name: growatt
+  friendly_name: growatt
+  comment: growatt
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+    version: recommended
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  ap:
+    ssid: "Esp32 Fallback Hotspot"
+    password: !secret wifi_password
+
+captive_portal:
+
+# Enable logging
+logger: 
+  level: DEBUG
+
+api:
+  password: !secret wifi_password
+
+ota:
+  - platform: esphome
+    password: !secret wifi_password
+
+uart:
+  id: mod_bus
+  tx_pin: 17
+  rx_pin: 16
+  baud_rate: 9600
+  stop_bits: 1
+ 
+modbus:
+  id: modbus1
+  flow_control_pin: 4
+ 
+modbus_controller:
+  - id: ${modbus_controller_id}
+    address: 0x1
+    modbus_id: modbus1
+    setup_priority: -10
+    update_interval: ${modbus_update_interval}
+    offline_skip_updates: 5   # 关键配置：设备离线时跳过5次更新[citation:3]
+    command_throttle: 500ms   # 命令间隔，避免过载
+    max_cmd_retries: 1        # 失败后重试1次，而不是默认的4次[citation:3]
+
+sensor:
+  # 状态码
+  - platform: modbus_controller
+    # name: ${device_name} status_code
+    skip_updates: $skip_updates_slow
+    address: 0
+    register_type: read
+    internal: true
+    id: status_code
+
+  # AC输出源读取
+  - platform: modbus_controller
+    internal: true
+    id: ac_output_source_code
+    address: 1
+    register_type: holding
+    value_type: U_WORD
+    unit_of_measurement: ""
+    skip_updates: $skip_updates_slow
+
+  # 充电源读取
+  - platform: modbus_controller
+    internal: true
+    id: charge_source_code
+    address: 2
+    register_type: holding
+    value_type: U_WORD
+    unit_of_measurement: ""
+    skip_updates: $skip_updates_slow
+
+  # 电池类型读取
+  - platform: modbus_controller
+    internal: true
+    id: battery_type_code
+    address: 39
+    register_type: holding
+    value_type: U_WORD
+    unit_of_measurement: ""
+    skip_updates: $skip_updates_slow
+
+# ###########PV1信息###########
+  # PV1电压
+  - platform: modbus_controller
+    name: "${device_name} PV1 voltage"
+    address: 1
+    register_type: read
+    unit_of_measurement: V
+    device_class: voltage
+    icon: mdi:flash
+    value_type: U_WORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+    
+  - platform: modbus_controller
+    name: "${device_name} PV1 current"
+    address: 7
+    register_type: read
+    unit_of_measurement: A
+    device_class: current
+    icon: mdi:flash
+    value_type: U_WORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+
+  - platform: modbus_controller
+    name: "${device_name} PV1 power"
+    id: pv1_power
+    address: 3
+    register_type: read
+    unit_of_measurement: W
+    device_class: power
+    icon: mdi:flash
+    value_type: U_DWORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+  # PV1今日发电电量
+  - platform: modbus_controller
+    name: "${device_name} PV1 Energy today"
+    skip_updates: $skip_updates_slow
+    address: 48
+    register_type: read
+    unit_of_measurement: kWh
+    device_class: energy
+    icon: mdi:solar-power
+    value_type: U_DWORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+  # PV1总发电电量
+  - platform: modbus_controller
+    name: "${device_name} PV1 Energy total"
+    skip_updates: $skip_updates_slow_slow
+    address: 50
+    register_type: read
+    unit_of_measurement: kWh
+    icon: mdi:solar-power
+    state_class: total_increasing
+    device_class: energy
+    value_type: U_DWORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+
+# ###########PV2信息###########
+  # PV2电压
+  - platform: modbus_controller
+    name: "${device_name} PV2 voltage"
+    address: 2
+    register_type: read
+    unit_of_measurement: V
+    device_class: voltage
+    icon: mdi:flash
+    value_type: U_WORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+    
+  - platform: modbus_controller
+    name: "${device_name} PV2 current"
+    address: 8
+    register_type: read
+    unit_of_measurement: A
+    device_class: current
+    icon: mdi:flash
+    value_type: U_WORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+
+  - platform: modbus_controller
+    name: "${device_name} PV2 power"
+    id: pv2_power
+    address: 5
+    register_type: read
+    unit_of_measurement: W
+    device_class: power
+    icon: mdi:flash
+    value_type: U_DWORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+  # PV2今日发电电量
+  - platform: modbus_controller
+    name: "${device_name} PV2 Energy today"
+    skip_updates: $skip_updates_slow
+    address: 52
+    register_type: read
+    unit_of_measurement: kWh
+    device_class: energy
+    icon: mdi:solar-power
+    value_type: U_DWORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+  # PV2总发电电量
+  - platform: modbus_controller
+    name: "${device_name} PV2 Energy total"
+    skip_updates: $skip_updates_slow_slow
+    address: 54
+    register_type: read
+    unit_of_measurement: kWh
+    icon: mdi:solar-power
+    state_class: total_increasing
+    device_class: energy
+    value_type: U_DWORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+
+# ###########AC INVERTER OUT###########
+  # 一体机输出功率
+  - platform: modbus_controller
+    name: "${device_name} Inverter Output Power"
+    address: 9
+    register_type: read
+    skip_updates: $skip_updates_fast
+    unit_of_measurement: W
+    device_class: power
+    value_type: U_DWORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+  - platform: modbus_controller
+    name: "${device_name} Inverter Output Current"
+    address: 34
+    register_type: read
+    skip_updates: $skip_updates_fast
+    unit_of_measurement: "A"
+    device_class: current
+    icon: mdi:flash
+    value_type: U_WORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1 
+  - platform: modbus_controller
+    name: "${device_name} Inverter Output apparent power"
+    address: 11
+    register_type: read
+    skip_updates: $skip_updates_fast
+    unit_of_measurement: VA
+    device_class: apparent_power
+    value_type: U_DWORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+  - platform: modbus_controller
+    name: "${device_name} Inverter output voltage"
+    address: 22
+    register_type: read
+    skip_updates: $skip_updates_fast
+    unit_of_measurement: "V"
+    device_class: voltage
+    icon: mdi:flash
+    value_type: U_WORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+  - platform: modbus_controller
+    name: "${device_name} Inverter output frequency"
+    skip_updates: $skip_updates_slow
+    address: 23
+    register_type: read
+    unit_of_measurement: "Hz"
+    icon: mdi:flash
+    value_type: U_WORD
+    accuracy_decimals: 2
+    filters:
+    - multiply: 0.01
+  # 一体机输出负载百分比
+  - platform: modbus_controller
+    name: "${device_name} Inverter Load Percent"
+    address: 27
+    register_type: read
+    unit_of_measurement: "%"
+    value_type: U_WORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+  # 一体机今日输出电量
+  - platform: modbus_controller
+    name: "${device_name} Inverter Out Energy today"
+    skip_updates: $skip_updates_slow
+    address: 85
+    register_type: read
+    unit_of_measurement: kWh
+    device_class: energy
+    icon: mdi:solar-power
+    value_type: U_DWORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+  # 一体机总输出电量
+  - platform: modbus_controller
+    name: "${device_name} Inverter Out Energy Total"
+    skip_updates: $skip_updates_slow_slow
+    address: 87
+    register_type: read
+    unit_of_measurement: kWh
+    state_class: total_increasing
+    device_class: energy
+    icon: mdi:solar-power
+    value_type: U_DWORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+
+# ###########市电充电###########
+  # 市电充电功率
+  - platform: modbus_controller
+    name: "${device_name} Grid Charge Power"
+    address: 13
+    register_type: read
+    unit_of_measurement: W
+    device_class: power
+    value_type: U_DWORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+  - platform: modbus_controller
+    name: "${device_name} Grid Charge Apparent Power"
+    address: 15
+    register_type: read
+    skip_updates: $skip_updates_fast
+    unit_of_measurement: VA
+    device_class: apparent_power
+    value_type: U_DWORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+  - platform: modbus_controller
+    name: "${device_name} Grid Charge Energy today"
+    skip_updates: $skip_updates_slow
+    address: 56
+    register_type: read
+    unit_of_measurement: kWh
+    device_class: energy
+    icon: mdi:solar-power
+    value_type: U_DWORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+  - platform: modbus_controller
+    name: "${device_name} Grid Charge Energy total"
+    skip_updates: $skip_updates_slow_slow
+    address: 58
+    register_type: read
+    unit_of_measurement: kWh
+    state_class: total_increasing
+    device_class: energy
+    icon: mdi:solar-power
+    value_type: U_DWORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+
+# ###########电池信息###########
+  # 电池电压
+  - platform: modbus_controller
+    name: "${device_name} Battery Voltage"
+    address: 17
+    register_type: read
+    unit_of_measurement: "V"
+    device_class: voltage
+    icon: mdi:flash
+    value_type: U_WORD
+    accuracy_decimals: 2
+    filters:
+    - multiply: 0.01
+    # 电池电流
+  - platform: modbus_controller
+    name: "${device_name} Battery Current"
+    address: 35
+    register_type: read
+    skip_updates: $skip_updates_fast
+    unit_of_measurement: "A"
+    device_class: current
+    icon: mdi:flash
+    value_type: U_WORD
+    accuracy_decimals: 2
+    filters:
+    - multiply: 0.1       
+  # 电池功率
+  - platform: modbus_controller
+    name: "${device_name} Battery power"
+    address: 77
+    register_type: read
+    skip_updates: $skip_updates_fast
+    unit_of_measurement: W
+    device_class: power
+    icon: mdi:battery-arrow-up-outline
+    value_type: U_DWORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+  # 电池百分比
+  - platform: modbus_controller
+    name: "${device_name} Battery SoC"
+    address: 18
+    register_type: read
+    unit_of_measurement: "%"
+    icon: mdi:home-battery
+    value_type: U_WORD
+    accuracy_decimals: 0
+  # DC总线电压
+  - platform: modbus_controller
+    name: "${device_name} DC Bus Voltage"
+    skip_updates: $skip_updates_slow
+    address: 19
+    register_type: read
+    unit_of_measurement: "V"
+    device_class: voltage
+    icon: mdi:flash
+    value_type: U_WORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+  - platform: modbus_controller
+    name: "${device_name} DC Charge Voltage"
+    skip_updates: $skip_updates_slow
+    address: 24
+    register_type: read
+    unit_of_measurement: "V"
+    device_class: voltage
+    icon: mdi:flash
+    value_type: U_WORD
+    accuracy_decimals: 2
+    filters:
+    - multiply: 0.1
+  - platform: modbus_controller
+    name: "${device_name} Battery Port voltage"
+    skip_updates: $skip_updates_slow
+    address: 28
+    register_type: read
+    unit_of_measurement: "V"
+    device_class: voltage
+    icon: mdi:flash
+    value_type: U_WORD
+    accuracy_decimals: 2
+    filters:
+    - multiply: 0.01
+  - platform: modbus_controller
+    name: "${device_name} Battery Bus Voltage"
+    skip_updates: $skip_updates_slow
+    address: 29
+    register_type: read
+    unit_of_measurement: "V"
+    device_class: voltage
+    icon: mdi:flash
+    value_type: U_WORD
+    accuracy_decimals: 2
+    filters:
+    - multiply: 0.01
+  - platform: modbus_controller
+    name: "${device_name} Battery Charge current"
+    address: 83
+    register_type: read
+    unit_of_measurement: "A"
+    device_class: current
+    icon: mdi:flash
+    value_type: U_WORD
+    accuracy_decimals: 2
+    filters:
+    - multiply: 0.1
+  - platform: modbus_controller
+    name: "${device_name} Battery DisCharge current"
+    address: 84
+    register_type: read
+    unit_of_measurement: "A"
+    device_class: current
+    icon: mdi:flash
+    value_type: U_WORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+  - platform: modbus_controller
+    name: "${device_name} Battery Charge Energy Today"
+    skip_updates: $skip_updates_slow
+    address: 99
+    register_type: read
+    unit_of_measurement: kWh
+    device_class: energy
+    icon: mdi:solar-power
+    value_type: U_DWORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+  - platform: modbus_controller
+    name: "${device_name} Battery Charge Energy Total"
+    skip_updates: $skip_updates_slow_slow
+    address: 100
+    register_type: read
+    unit_of_measurement: kWh
+    state_class: total_increasing
+    device_class: energy
+    icon: mdi:solar-power
+    value_type: U_DWORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+  - platform: modbus_controller
+    name: "${device_name} Battery Discharge Energy Today"
+    skip_updates: $skip_updates_slow
+    address: 60
+    register_type: read
+    unit_of_measurement: kWh
+    device_class: energy
+    icon: mdi:solar-power
+    value_type: U_DWORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+  - platform: modbus_controller
+    name: "${device_name} Battery Discharge Energy total"
+    skip_updates: $skip_updates_slow_slow
+    address: 62
+    register_type: read
+    unit_of_measurement: kWh
+    state_class: total_increasing
+    device_class: energy
+    icon: mdi:solar-power
+    value_type: U_DWORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+
+# ###########市电输入一体机###########
+  # 市电输入电压
+  - platform: modbus_controller
+    name: "${device_name} Grid input Voltage"
+    skip_updates: $skip_updates_slow
+    address: 20
+    register_type: read
+    unit_of_measurement: "V"
+    device_class: voltage
+    icon: mdi:flash
+    value_type: U_WORD
+    accuracy_decimals: 2
+    filters:
+    - multiply: 0.1
+  # 市电输入频率
+  - platform: modbus_controller
+    name: "${device_name} Grid input frequency"
+    skip_updates: $skip_updates_slow
+    address: 21
+    register_type: read
+    unit_of_measurement: "Hz"
+    icon: mdi:flash
+    value_type: U_WORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.01
+  # 市电输入功率
+  - platform: modbus_controller
+    name: "${device_name} Input Power"
+    address: 36
+    register_type: read
+    unit_of_measurement: W
+    device_class: power
+    state_class: measurement
+    icon: mdi:solar-power-variant
+    value_type: U_DWORD
+    accuracy_decimals: 2
+    filters:
+      - multiply: 0.1
+  # 市电输入视在功率
+  - platform: modbus_controller
+    name: "${device_name} Grid input Apparent Power"
+    skip_updates: $skip_updates_slow
+    address: 38
+    register_type: read
+    unit_of_measurement: "VA"
+    device_class: apparent_power
+    icon: mdi:flash
+    value_type: U_DWORD
+    accuracy_decimals: 2
+    filters:
+    - multiply: 0.1
+
+# ###########温度信息###########
+  - platform: modbus_controller
+    name: "${device_name} Inverter Temperature1"
+    address: 25
+    register_type: read
+    unit_of_measurement: °C
+    device_class: temperature
+    entity_category: diagnostic
+    icon: mdi:thermometer
+    value_type: U_WORD
+    accuracy_decimals: 2
+    filters:
+    - multiply: 0.1
+    skip_updates: $skip_updates_fast
+  - platform: modbus_controller
+    name: "${device_name} DC Bus Temperature"
+    address: 26
+    register_type: read
+    unit_of_measurement: °C
+    device_class: temperature
+    entity_category: diagnostic
+    icon: mdi:thermometer
+    value_type: U_WORD
+    accuracy_decimals: 2
+    filters:
+    - multiply: 0.1
+    skip_updates: $skip_updates_slow
+  - platform: modbus_controller
+    name: "${device_name} Inverter Temperature2"
+    address: 32
+    register_type: read
+    unit_of_measurement: °C
+    device_class: temperature
+    entity_category: diagnostic
+    icon: mdi:thermometer
+    value_type: U_WORD
+    accuracy_decimals: 2
+    filters:
+    - multiply: 0.1
+    skip_updates: $skip_updates_slow
+  - platform: modbus_controller
+    name: "${device_name} Inverter Temperature3"
+    address: 33
+    register_type: read
+    unit_of_measurement: °C
+    device_class: temperature
+    entity_category: diagnostic
+    icon: mdi:thermometer
+    value_type: U_WORD
+    accuracy_decimals: 2
+    filters:
+    - multiply: 0.1
+    skip_updates: $skip_updates_slow
+
+# ###########BMS信息###########
+  # BMS电池百分比
+  - platform: modbus_controller
+    name: "${device_name} BMS SOC"
+    address: 203
+    register_type: read
+    unit_of_measurement: "%"
+    icon: mdi:home-battery
+    value_type: U_WORD
+    accuracy_decimals: 2
+  - platform: modbus_controller
+    name: "${device_name} BMS Voltage"
+    skip_updates: $skip_updates_slow
+    address: 204
+    register_type: read
+    unit_of_measurement: "V"
+    device_class: voltage
+    icon: mdi:flash
+    value_type: U_WORD
+    accuracy_decimals: 2
+    filters:
+    - multiply: 0.01
+  - platform: modbus_controller
+    name: "${device_name} BMS Current"
+    skip_updates: $skip_updates_slow
+    address: 205
+    register_type: read
+    unit_of_measurement: "A"
+    device_class: current
+    icon: mdi:flash
+    value_type: U_WORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+  - platform: modbus_controller
+    name: "${device_name} BMS Temperature"
+    address: 206
+    register_type: read
+    unit_of_measurement: °C
+    device_class: temperature
+    entity_category: diagnostic
+    icon: mdi:thermometer
+    value_type: U_WORD
+    accuracy_decimals: 1
+    filters:
+    - multiply: 0.1
+    skip_updates: $skip_updates_fast
+
+# ###########风扇信息###########
+  # MPPT充电器风扇速度
+  - platform: modbus_controller
+    name: "${device_name} MPPT Fan Speed"
+    skip_updates: $skip_updates_slow
+    device_class: power_factor
+    address: 81
+    register_type: read
+    unit_of_measurement: "%"
+    icon: mdi:home-battery
+    value_type: U_WORD
+    accuracy_decimals: 0
+  # 一体机散热风扇
+  - platform: modbus_controller
+    name: "${device_name} Inverter Fan Speed"
+    skip_updates: $skip_updates_slow
+    device_class: power_factor
+    address: 82
+    register_type: read
+    unit_of_measurement: "%"
+    icon: mdi:home-battery
+    value_type: U_WORD
+    accuracy_decimals: 0
+
+# ###########报警信息###########
+  # 错误
+  - platform: modbus_controller
+    id: fault_code
+    name: ${device_name} Fault Code
+    skip_updates: $skip_updates_slow
+    address: 30
+    register_type: read
+    value_type: U_WORD
+    internal: True
+  # 低级警告
+  - platform: modbus_controller
+    id: warning_code_l
+    name: ${device_name} Warning Code L
+    skip_updates: $skip_updates_slow
+    address: 41
+    register_type: read
+    value_type: U_WORD
+    internal: True
+  # 高级警告
+  - platform: modbus_controller
+    id: warning_code_h
+    name: ${device_name} Warning Code H
+    skip_updates: $skip_updates_slow
+    address: 42
+    register_type: read
+    value_type: U_WORD
+    internal: True
+    
+select:
+  - platform: modbus_controller
+    name: "${device_name} Inverter Priority"
+    icon: mdi:arrow-decision-outline
+    address: 1
+    value_type: U_WORD
+    optionsmap:
+      "Battery First": 0
+      "Solar First": 1
+      "Utility First": 2
+      "SUB priority": 3
+    skip_updates: $skip_updates_slow_slow
+  - platform: modbus_controller
+    name: "${device_name} Write Charge Source"
+    icon: mdi:arrow-decision-outline
+    address: 2
+    value_type: U_WORD
+    optionsmap:
+      "Solar First": 0
+      "Solar and Utility": 1
+      "Only Solar": 2
+    skip_updates: $skip_updates_slow_slow
+  - platform: modbus_controller
+    name: "${device_name} Write Battery Type"
+    icon: mdi:arrow-decision-outline
+    address: 39
+    value_type: U_WORD
+    optionsmap:
+      "AGM": 0
+      "Flooded": 1
+      "User-Defined": 2
+      "Lithium": 3
+      "User-Defined 2": 4
+    skip_updates: $skip_updates_slow_slow
+
+text_sensor:
+  # AC输出源文字描述
+  - platform: template
+    name: "${device_name} AC Output Source"
+    icon: mdi:power-plug
+    lambda: |-
+      if (isnan(id(ac_output_source_code).state)) {
+        return {"Unknown"};
+      }
+      int value = (int)id(ac_output_source_code).state;
+      switch (value) {
+        case 0: return {"SBU Priority"};
+        case 1: return {"Solar First"};
+        case 2: return {"Utility First"};
+        case 3: return {"SUB Priority"};
+        default: return {"Unknown"};
+      }
+    update_interval: $update_slow
+
+  # 充电源文字描述
+  - platform: template
+    name: "${device_name} Charge Source"
+    icon: mdi:battery-charging
+    lambda: |-
+      if (isnan(id(charge_source_code).state)) {
+        return {"Unknown"};
+      }
+      int value = (int)id(charge_source_code).state;
+      switch (value) {
+        case 0: return {"Solar First"};
+        case 1: return {"Solar and Utility"};
+        case 2: return {"Only Solar"};
+        default: return {"Unknown"};
+      }
+    update_interval: $update_slow
+
+  # 电池类型文字描述
+  - platform: template
+    name: "${device_name} Battery Type"
+    icon: mdi:battery
+    lambda: |-
+      if (isnan(id(battery_type_code).state)) {
+        return {"Unknown"};
+      }
+      int value = (int)id(battery_type_code).state;
+      switch (value) {
+        case 0: return {"AGM"};
+        case 1: return {"Flooded"};
+        case 2: return {"User-Defined"};
+        case 3: return {"Lithium"};
+        case 4: return {"User-Defined 2"};
+        default: return {"Unknown"};
+      }
+    update_interval: $update_slow
+
+  # 一体机错误信息文字描述
+  - platform: template
+    name: "${device_name} Fault Info"
+    icon: mdi:alert-circle
+    lambda: |-
+      if (isnan(id(fault_code).state)) {
+        return {"Unknown"};
+      }
+      
+      int code = (int)id(fault_code).state;
+      
+      // 使用静态数组（存储在Flash）
+      static const struct {
+        int mask;
+        const char* name;
+      } fault_map[] = {
+        {1, "Fan Lock"},
+        {2, "Over Temperature"},
+        {4, "Battery Voltage High"},
+        {8, "Battery Low"},
+        {16, "Output Short"},
+        {32, "Output Voltage High"},
+        {64, "Overload"},
+        {128, "Bus Voltage High"},
+        {256, "Bus Soft Start Fail"}
+      };
+      
+      std::string result;
+      bool first = true;
+      
+      // 使用传统索引循环，避免范围for循环
+      for (size_t i = 0; i < sizeof(fault_map)/sizeof(fault_map[0]); i++) {
+        if (code & fault_map[i].mask) {
+          if (!first) {
+            result += ", ";
+          }
+          result += fault_map[i].name;
+          first = false;
+        }
+      }
+      
+      return first ? "Normal" : result;
+    update_interval: $update_slow
+
+  - platform: template
+    name: "${device_name} Status state"
+    icon: mdi:eye
+    entity_category: diagnostic
+    lambda: |-
+      if (isnan(id(status_code).state)) {
+        return {"Unknown"};
+      }
+      int value = (int)id(status_code).state;
+      switch (value) {
+        case 0: return {"Standby"};
+        case 1: return {"PV & Grid Supporting Loads"};
+        case 2: return {"Battery Discharging"};
+        case 3: return {"Fault"};
+        case 4: return {"Info/Flash/Booting"};
+        case 5: return {"PV Charging"};
+        case 6: return {"Grid Charging"};
+        case 7: return {"PV & Grid Charging"};
+        case 8: return {"PV+Grid Charging + Grid Bypass"};
+        case 9: return {"PV Charging + Grid Bypass"};
+        case 10: return {"Grid Charging + Grid Bypass"};
+        case 11: return {"Grid Bypass"};
+        case 12: return {"PV Charging + Load Supporting"};
+        case 13: return {"PV Discharging"};
+        case 14: return {"PV & Battery Discharging"};
+        case 15: return {"Generator Charging"};
+        case 16: return {"Generator Charging + Gen Bypass"};
+        case 17: return {"PV & Generator Charging"};
+        case 18: return {"PV & Generator Charging + Generator Bypass"};
+        case 19: return {"PV Charging + Generator Bypass"};
+        case 20: return {"Generator Bypass"};
+        case 21: return {"PV Export to Grid"};
+        case 22: return {"PV Export + Loads Supporting"};
+        case 23: return {"PV Charging + Export to Grid"};
+        case 24: return {"PV Charging + Export + Loads Supporting"};
+        case 25: return {"Battery Export to Grid"};
+        case 26: return {"Battery Export + Loads Supporting"};
+        case 27: return {"Battery & PV Export to Grid"};
+        case 28: return {"Battery & PV Export + Loads Supporting"};
+        default: return {"Unknown"};
+      }
+    update_interval: $update_slow
+
+  - platform: template
+    name: "${device_name} Warning Info"
+    lambda: |-
+      if (isnan(id(warning_code_l).state) || isnan(id(warning_code_h).state)) {
+        return {"Disconnected"};
+      }
+      
+      uint32_t code = ((uint32_t)id(warning_code_h).state << 16) | 
+                       (uint32_t)id(warning_code_l).state;
+      
+      // 静态映射表（存储在Flash，不占用RAM）
+      static const uint32_t masks[] = {
+        0x00000001, 0x00000002, 0x00000004, 0x00000008,
+        0x00000010, 0x00000020, 0x00000040, 0x00000080,
+        0x00000100, 0x00000200, 0x00000400, 0x00000800,
+        0x00001000, 0x00002000, 0x00004000, 0x00008000,
+        0x00010000, 0x00020000, 0x00080000, 0x00100000,
+        0x00200000, 0x00400000, 0x00800000, 0x01000000,
+        0x02000000, 0x04000000
+      };
+      
+      static const char* descriptions[] = {
+        "Fan Locked", "Over Charge", "Battery Low", "Overload",
+        "Power Derating", "Solar Stop Battery Low", "PV Voltage High Stop", "Solar Stop Overload",
+        "Grid Different", "Grid Phase Error", "Output Phase Loss", "Over Temperature",
+        "Buck Current Over", "Battery Disconnected", "BMS Communication Error", "PV Power Insufficient",
+        "No Battery Parallel Disable", "Parallel Version Different", "Capacity Different", "Host Loss",
+        "BMS Cell Over Volt", "BMS Total Over Volt", "BMS Discharge Overcurrent", "BMS Charge Overcurrent",
+        "BMS Over Temperature", "Battery Voltage Inconsistent"
+      };
+      
+      std::string result;
+      bool first = true;
+      
+      for (int i = 0; i < 26; i++) {
+        if (code & masks[i]) {
+          if (!first) {
+            result += ", ";
+          }
+          result += descriptions[i];
+          first = false;
+        }
+      }
+      
+      return first ? "Normal" : result;
+    update_interval: $update_fast
